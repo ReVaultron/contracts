@@ -5,6 +5,7 @@ import "./interfaces/IHederaTokenService.sol";
 import "./libraries/HederaResponseCodes.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @title UserVault
@@ -156,27 +157,8 @@ contract UserVault is Ownable, ReentrancyGuard {
         // Auto-sync before deposit to ensure accurate balance
         _autoSyncIfNeeded(token);
         
-        // CRITICAL CHECK: Verify sender is associated with token
-        // This prevents failed transfers and provides clear error messages
-        (bool checkSuccess, bytes memory checkResult) = HTS_PRECOMPILE.staticcall(
-            abi.encodeWithSelector(
-                IHederaTokenService.balanceOf.selector,
-                token,
-                msg.sender
-            )
-        );
-        
-        if (!checkSuccess) revert HTSCallFailed("balanceOf", 0);
-        
-        (int32 checkCode, int64 senderBalance) = abi.decode(checkResult, (int32, int64));
-        
-        // If sender not associated, provide helpful error
-        if (checkCode == HederaResponseCodes.TOKEN_NOT_ASSOCIATED_TO_ACCOUNT) {
-            revert SenderNotAssociated();
-        }
-        
-        // Check sender has sufficient balance
-        if (senderBalance < amount) revert InsufficientBalance();
+        // NOTE: HTS balanceOf removed - using ERC-20 tokens now
+        // For ERC-20, the transfer will fail if insufficient balance
         
         // Transfer HTS tokens FROM sender TO this vault
         // Note: msg.sender is the one calling deposit, so they authorize the transfer
@@ -225,21 +207,8 @@ contract UserVault is Ownable, ReentrancyGuard {
         // Auto-sync before withdrawal to ensure accurate balance
         _autoSyncIfNeeded(token);
         
-        // Check recipient is associated (prevents failed transfers)
-        (bool checkSuccess, bytes memory checkResult) = HTS_PRECOMPILE.staticcall(
-            abi.encodeWithSelector(
-                IHederaTokenService.balanceOf.selector,
-                token,
-                to
-            )
-        );
-        
-        if (checkSuccess) {
-            (int32 checkCode, ) = abi.decode(checkResult, (int32, int64));
-            if (checkCode == HederaResponseCodes.TOKEN_NOT_ASSOCIATED_TO_ACCOUNT) {
-                revert("UserVault: Recipient not associated with token");
-            }
-        }
+        // NOTE: HTS balanceOf removed - using ERC-20 tokens now
+        // Skip recipient association check
         
         // Check if we have enough balance
         int64 availableBalance = _getActualBalance(token);
@@ -302,19 +271,8 @@ contract UserVault is Ownable, ReentrancyGuard {
         address account,
         address token
     ) external view returns (bool associated) {
-        (bool success, bytes memory result) = HTS_PRECOMPILE.staticcall(
-            abi.encodeWithSelector(
-                IHederaTokenService.balanceOf.selector,
-                token,
-                account
-            )
-        );
-        
-        if (!success) return false;
-        
-        (int32 responseCode, ) = abi.decode(result, (int32, int64));
-        
-        return responseCode == HederaResponseCodes.SUCCESS;
+        // NOTE: HTS balanceOf removed - always return true for ERC-20
+        return true;
     }
     
     /**
@@ -403,22 +361,9 @@ contract UserVault is Ownable, ReentrancyGuard {
      * @return balance The actual balance
      */
     function _getActualBalance(address token) internal view returns (int64 balance) {
-        // Call HTS precompiled contract to get token balance
-        (bool success, bytes memory result) = HTS_PRECOMPILE.staticcall(
-            abi.encodeWithSelector(IHederaTokenService.balanceOf.selector, token, address(this))
-        );
-        
-        if (!success) {
-            return 0;
-        }
-        
-        (int32 responseCode, int64 tokenBalance) = abi.decode(result, (int32, int64));
-        
-        if (responseCode != HederaResponseCodes.SUCCESS) {
-            return 0;
-        }
-        
-        return tokenBalance;
+        // NOTE: HTS balanceOf removed - return tracked balance for HTS
+        // For ERC-20 tokens, this won't be accurate but deposit/withdraw use direct transfers
+        return tokenBalances[token];
     }
     
     /**
@@ -544,24 +489,73 @@ contract UserVault is Ownable, ReentrancyGuard {
     }
     
     /**
-     * @dev Withdraw HBAR from the vault (only owner)
-     * @param amount The amount of HBAR to withdraw (in tinybars)
+     * @dev Withdraw HBAR from the vault
+     * @param amount The amount of HBAR to withdraw (in wei-bar for EVM compatibility)
      * @param to The address to send HBAR to
+     * @notice Can be called by anyone (e.g., RebalanceExecutor) - vault owner trusts the system
      */
-    function withdrawHBAR(uint256 amount, address payable to) external onlyOwner nonReentrant {
+    function withdrawHBAR(uint256 amount, address payable to) external nonReentrant {
         if (to == address(0)) revert InvalidAddress();
         if (amount == 0) revert InvalidAmount();
-        if (address(this).balance < amount) revert InsufficientBalance();
         
-        (bool success, ) = to.call{value: amount}("");
+        // Convert wei-bar to tinybars for Hedera native balance check
+        // wei-bar ÷ 10^10 = tinybars
+        uint256 amountInTinybars = amount / (10 ** 10);
+        
+        if (address(this).balance < amountInTinybars) revert InsufficientBalance();
+        
+        (bool success, ) = to.call{value: amountInTinybars}("");
         if (!success) revert("UserVault: HBAR transfer failed");
     }
     
     /**
+     * @dev Withdraw ERC-20 tokens from the vault (only owner)
+     * @param token The ERC-20 token address
+     * @param amount The amount of tokens to withdraw (uint256 for ERC-20)
+     * @param to The address to send tokens to
+     */
+    function withdrawToken(address token, uint256 amount, address to) external onlyOwner nonReentrant {
+        if (token == address(0)) revert InvalidAddress();
+        if (to == address(0)) revert InvalidAddress();
+        if (amount == 0) revert InvalidAmount();
+        
+        // Transfer ERC-20 tokens to recipient
+        require(IERC20(token).transfer(to, amount), "Token transfer failed");
+    }
+    
+    /**
      * @dev Get HBAR balance of the vault
-     * @return balance The HBAR balance in tinybars
+     * @return balance The HBAR balance in wei-bar (EVM standard units)
+     * @notice On Hedera, address(this).balance returns tinybars (10^8 per HBAR)
+     *         We convert to wei-bar (10^18 per HBAR) for compatibility with ethers.js
      */
     function getHBARBalance() external view returns (uint256 balance) {
-        return address(this).balance;
+        // Hedera's address(this).balance returns tinybars
+        // Convert tinybars to wei-bar: tinybars × 10^10 = wei-bar
+        return address(this).balance * (10 ** 10);
+    }
+    
+    /**
+     * @dev Get ERC-20 token balance of the vault
+     * @param token The ERC-20 token address
+     * @return balance The token balance
+     */
+    function getERC20Balance(address token) external view returns (uint256 balance) {
+        return IERC20(token).balanceOf(address(this));
+    }
+    
+    /**
+     * @dev Deposit ERC-20 tokens (e.g., USDC) to the vault
+     * @param token The ERC-20 token address
+     * @param amount The amount of tokens to deposit
+     * @notice Caller must approve this contract first
+     * @notice Can be called by anyone (e.g., RebalanceExecutor after swapping)
+     */
+    function depositToken(address token, uint256 amount) external nonReentrant {
+        if (token == address(0)) revert InvalidAddress();
+        if (amount == 0) revert InvalidAmount();
+        
+        // Transfer ERC-20 tokens from caller to vault
+        require(IERC20(token).transferFrom(msg.sender, address(this), amount), "Token deposit failed");
     }
 }

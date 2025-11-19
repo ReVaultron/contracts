@@ -3,10 +3,21 @@ src = "src"
 out = "out"
 libs = ["lib"]
 via_ir = true
+gas_reports = ["*"]
+gas_reports_ignore = ["*Test*"]
 
+# Hedera testnet configuration
+[profile.hedera]
+src = "src"
+out = "out"
+libs = ["lib"]
+via_ir = true
 
-# See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
-
-testnet = "${HEDERA_RPC_URL}"
+# RPC endpoints
 [rpc_endpoints]
-hedera = "${HEDERA_RPC_URL}"
+hedera = "https://testnet.hashio.io/api"
+hedera_mainnet = "https://mainnet.hashio.io/api"
+
+# Etherscan equivalent for Hedera (HashScan)
+[etherscan]
+hedera = { key = "no-key-required", url = "https://hashscan.io/testnet/" }

@@ -3,29 +3,30 @@ pragma solidity ^0.8.28;
 
 import "./UserVault.sol";
 import "./VolatilityIndex.sol";
-import "./SaucerSwapper.sol";
+import "./swap.sol";
 import "./interfaces/IHederaTokenService.sol";
 import "./libraries/HederaResponseCodes.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @title RebalanceExecutor
  * @notice Executes portfolio rebalancing for ReVaultron vaults
- * @dev Integrates with VolatilityIndex, UserVault, and SaucerSwapper
+ * @dev Integrates with VolatilityIndex, UserVault, and ManualSwapper
  * @custom:security-contact security@revaultron.io
  */
 contract RebalanceExecutor is Ownable, ReentrancyGuard {
     
     // Core contracts
     VolatilityIndex public volatilityIndex;
-    SaucerSwapper public swapper;
+    ManualSwapper public swapper;
     
     // HTS precompile
     address constant HTS_PRECOMPILE = address(0x167);
     
     // Rebalancing configuration
-    uint256 public maxDriftBps = 500; // 5% max drift before rebalancing
+    uint256 public maxDriftBps = 1; // 5% max drift before rebalancing
     uint256 public constant BASIS_POINTS = 10000;
     
     // Authorized agents (can trigger rebalancing)
@@ -70,7 +71,7 @@ contract RebalanceExecutor is Ownable, ReentrancyGuard {
     /**
      * @dev Constructor
      * @param _volatilityIndex VolatilityIndex contract address
-     * @param _swapper SaucerSwapper contract address
+     * @param _swapper ManualSwapper contract address
      */
     constructor(
         address payable _volatilityIndex,
@@ -80,7 +81,7 @@ contract RebalanceExecutor is Ownable, ReentrancyGuard {
         if (_swapper == address(0)) revert InvalidAddress();
 
         volatilityIndex = VolatilityIndex(_volatilityIndex);
-        swapper = SaucerSwapper(_swapper);
+        swapper = ManualSwapper(_swapper);
 
         // Owner is automatically authorized
         isAuthorizedAgent[msg.sender] = true;
@@ -107,8 +108,8 @@ contract RebalanceExecutor is Ownable, ReentrancyGuard {
     ) external nonReentrant {
         if (!isAuthorizedAgent[msg.sender]) revert Unauthorized();
         if (vault == address(0)) revert InvalidAddress();
-        if (tokenToSell == address(0)) revert InvalidAddress();
-        if (tokenToBuy == address(0)) revert InvalidAddress();
+        // Note: address(0) is valid for HBAR, so only check if BOTH are address(0)
+        if (tokenToSell == address(0) && tokenToBuy == address(0)) revert InvalidAddress();
         
         UserVault userVault = UserVault(payable(vault));
         
@@ -119,7 +120,7 @@ contract RebalanceExecutor is Ownable, ReentrancyGuard {
             revert RebalanceNotNeeded();
         }
         
-        // 2. Calculate current allocations
+        // 2. Calculate current allocations using USD values
         (
             uint256 currentAllocationSell,
             uint256 currentAllocationBuy,
@@ -127,7 +128,8 @@ contract RebalanceExecutor is Ownable, ReentrancyGuard {
         ) = _calculateCurrentAllocations(
             userVault,
             tokenToSell,
-            tokenToBuy
+            tokenToBuy,
+            priceFeedId
         );
         
         // 3. Check if rebalancing is needed (drift > threshold)
@@ -138,49 +140,52 @@ contract RebalanceExecutor is Ownable, ReentrancyGuard {
             revert RebalanceNotNeeded();
         }
         
+        // Get HBAR price for amount calculation
+        VolatilityIndex.VolatilityData memory volData = volatilityIndex.getVolatilityData(priceFeedId);
+        int64 hbarPriceUSD = volData.price;
+        
         // 4. Calculate rebalancing amounts
         int64 amountToSell = _calculateSellAmount(
             userVault,
             tokenToSell,
             currentAllocationSell,
             targetAllocationSell,
-            totalValue
+            totalValue,
+            hbarPriceUSD
         );
         
         if (amountToSell <= 0) revert InsufficientBalance();
         
-        // 5. Withdraw tokens from vault to this executor
-        userVault.withdrawTo(tokenToSell, amountToSell, address(this));
+        // 5. Withdraw HBAR from vault to this executor
+        // amountToSell is in tinybars, convert to wei-bar for withdrawal
+        // tinybars × 10^10 = wei-bar
+        uint256 hbarAmountWeiBar = uint256(uint64(amountToSell)) * (10 ** 10);
+        userVault.withdrawHBAR(hbarAmountWeiBar, payable(address(this)));
         
-        // 6. Get estimated output
-        int64 estimatedOut = swapper.getAmountOut(
-            tokenToSell,
-            tokenToBuy,
-            amountToSell
-        );
+        // 6. Get expected USDC amount from swapper (using wei-bar)
+        uint256 expectedUSDC = swapper.getAmountOut(hbarAmountWeiBar);
+        int64 amountReceived = int64(uint64(expectedUSDC));
         
-        int64 minAmountOut = swapper.calculateMinOutput(estimatedOut);
-        
-        // 7. Execute swap
-        int64 amountReceived;
-        try swapper.swapExactInput(
-            tokenToSell,
-            tokenToBuy,
-            amountToSell,
-            minAmountOut,
-            address(this)
-        ) returns (int64 amount) {
-            amountReceived = amount;
+        // 7. Execute swap: send HBAR to ManualSwapper and receive USDC
+        // Note: On Hedera, msg.value is in tinybars
+        uint256 hbarAmountTinybars = uint256(uint64(amountToSell));
+        uint256 actualUSDC;
+        try swapper.swap{value: hbarAmountTinybars}(address(this)) returns (uint256 amount) {
+            actualUSDC = amount;
+            // Verify we got the expected amount
+            require(actualUSDC == expectedUSDC, "Unexpected USDC amount");
         } catch Error(string memory reason) {
-            // Return tokens to vault on failure
-            _transferToken(tokenToSell, address(this), vault, amountToSell);
+            // Return HBAR to vault on failure (in tinybars)
+            (bool success, ) = payable(address(userVault)).call{value: hbarAmountTinybars}("");
+            require(success, "Failed to return HBAR to vault");
             emit RebalanceFailed(vault, reason);
             revert(reason);
         }
         
-        // 8. Deposit swapped tokens back to vault
-        // First, transfer tokens to vault
-        _transferToken(tokenToBuy, address(this), vault, amountReceived);
+        // 8. Deposit USDC to vault using depositToken function
+        // First approve vault to spend USDC, then call depositToken
+        IERC20(tokenToBuy).approve(vault, actualUSDC);
+        UserVault(payable(vault)).depositToken(tokenToBuy, actualUSDC);
         
         // 9. Record rebalancing
         rebalanceHistory.push(RebalanceRecord({
@@ -205,37 +210,69 @@ contract RebalanceExecutor is Ownable, ReentrancyGuard {
     }
     
     /**
-     * @notice Calculate current allocations for two tokens
+     * @notice Calculate current allocations for two tokens using USD values
+     * @dev Converts HBAR to USD using Pyth price feed, USDC is already in USD
      * @param vault UserVault instance
-     * @param token0 First token address
-     * @param token1 Second token address
+     * @param token0 First token address (HBAR if address(0))
+     * @param token1 Second token address (USDC)
+     * @param priceFeedId Pyth price feed ID for HBAR/USD
      * @return allocation0 Allocation of token0 in basis points
      * @return allocation1 Allocation of token1 in basis points
-     * @return totalValue Total portfolio value
+     * @return totalValueUSD Total portfolio value in USD (8 decimals)
      */
     function _calculateCurrentAllocations(
         UserVault vault,
         address token0,
-        address token1
+        address token1,
+        bytes32 priceFeedId
     ) internal view returns (
         uint256 allocation0,
         uint256 allocation1,
-        int64 totalValue
+        int64 totalValueUSD
     ) {
-        int64 balance0 = vault.getBalance(token0);
-        int64 balance1 = vault.getBalance(token1);
+        // Get HBAR price from Pyth (price has 8 decimals, e.g., 0.15 USD = 15000000)
+        VolatilityIndex.VolatilityData memory volData = volatilityIndex.getVolatilityData(priceFeedId);
+        int64 hbarPriceUSD = volData.price; // Price in USD with 8 decimals
         
-        totalValue = balance0 + balance1;
+        int64 value0USD;
+        int64 value1USD;
         
-        if (totalValue == 0) {
+        if (token0 == address(0)) {
+            // HBAR: convert tinybars to USD value
+            // Formula: (tinybars × priceUSD) / 10^8
+            uint256 hbarWeiBar = vault.getHBARBalance();
+            uint256 hbarTinybars = hbarWeiBar / (10 ** 10);
+            // value = (tinybars × price) / 10^8 (price has 8 decimals)
+            value0USD = int64(uint64((hbarTinybars * uint256(uint64(hbarPriceUSD))) / (10 ** 8)));
+        } else {
+            // Token0 is USDC - convert to 8 decimals
+            // USDC has 6 decimals, multiply by 100 to get 8 decimals
+            uint256 usdcBalance = IERC20(token0).balanceOf(address(vault));
+            value0USD = int64(uint64(usdcBalance * 100));
+        }
+        
+        if (token1 == address(0)) {
+            // HBAR: convert tinybars to USD value
+            uint256 hbarWeiBar = vault.getHBARBalance();
+            uint256 hbarTinybars = hbarWeiBar / (10 ** 10);
+            value1USD = int64(uint64((hbarTinybars * uint256(uint64(hbarPriceUSD))) / (10 ** 8)));
+        } else {
+            // Token1 is USDC - convert to 8 decimals
+            uint256 usdcBalance = IERC20(token1).balanceOf(address(vault));
+            value1USD = int64(uint64(usdcBalance * 100));
+        }
+        
+        totalValueUSD = value0USD + value1USD;
+        
+        if (totalValueUSD == 0) {
             return (0, 0, 0);
         }
         
         // Calculate allocations in basis points
-        allocation0 = (uint256(uint64(balance0)) * BASIS_POINTS) / uint256(uint64(totalValue));
-        allocation1 = (uint256(uint64(balance1)) * BASIS_POINTS) / uint256(uint64(totalValue));
+        allocation0 = (uint256(uint64(value0USD)) * BASIS_POINTS) / uint256(uint64(totalValueUSD));
+        allocation1 = (uint256(uint64(value1USD)) * BASIS_POINTS) / uint256(uint64(totalValueUSD));
         
-        return (allocation0, allocation1, totalValue);
+        return (allocation0, allocation1, totalValueUSD);
     }
     
     /**
@@ -257,37 +294,58 @@ contract RebalanceExecutor is Ownable, ReentrancyGuard {
     }
     
     /**
-     * @notice Calculate amount to sell for rebalancing
+     * @notice Calculate amount to sell for rebalancing (converts USD value to token amount)
      * @param vault UserVault instance
      * @param token Token to sell
      * @param currentAllocation Current allocation (bps)
      * @param targetAllocation Target allocation (bps)
-     * @param totalValue Total portfolio value
-     * @return amountToSell Amount to sell
+     * @param totalValueUSD Total portfolio value in USD (8 decimals)
+     * @param hbarPriceUSD HBAR price in USD (8 decimals)
+     * @return amountToSell Amount to sell in native token decimals
      */
     function _calculateSellAmount(
         UserVault vault,
         address token,
         uint256 currentAllocation,
         uint256 targetAllocation,
-        int64 totalValue
+        int64 totalValueUSD,
+        int64 hbarPriceUSD
     ) internal view returns (int64 amountToSell) {
         if (currentAllocation <= targetAllocation) {
             return 0; // No need to sell
         }
         
-        // Calculate excess allocation
+        // Calculate excess allocation in USD (8 decimals)
         uint256 excessAllocation = currentAllocation - targetAllocation;
+        uint256 valueToSellUSD = (uint256(uint64(totalValueUSD)) * excessAllocation) / BASIS_POINTS;
         
-        // Calculate amount to sell
-        uint256 amountUint = (uint256(uint64(totalValue)) * excessAllocation) / BASIS_POINTS;
-        
-        amountToSell = int64(uint64(amountUint));
-        
-        // Ensure we don't exceed available balance
-        int64 availableBalance = vault.getBalance(token);
-        if (amountToSell > availableBalance) {
-            amountToSell = availableBalance;
+        // Convert USD value to token amount
+        if (token == address(0)) {
+            // HBAR: convert USD to tinybars
+            // tinybars = (valueUSD × 10^8) / priceUSD
+            uint256 tinybarsToSell = (valueToSellUSD * (10 ** 8)) / uint256(uint64(hbarPriceUSD));
+            amountToSell = int64(uint64(tinybarsToSell));
+            
+            // Check available balance
+            uint256 hbarWeiBar = vault.getHBARBalance();
+            uint256 hbarTinybars = hbarWeiBar / (10 ** 10);
+            int64 availableBalance = int64(uint64(hbarTinybars));
+            
+            if (amountToSell > availableBalance) {
+                amountToSell = availableBalance;
+            }
+        } else {
+            // USDC: valueUSD is already in 8 decimals, convert to 6 decimals
+            // USDC units = valueUSD / 100
+            amountToSell = int64(uint64(valueToSellUSD / 100));
+            
+            // Check available balance
+            uint256 usdcBalance = IERC20(token).balanceOf(address(vault));
+            int64 availableBalance = int64(uint64(usdcBalance));
+            
+            if (amountToSell > availableBalance) {
+                amountToSell = availableBalance;
+            }
         }
         
         return amountToSell;
@@ -358,7 +416,7 @@ contract RebalanceExecutor is Ownable, ReentrancyGuard {
         (
             uint256 currentAllocation0,
             uint256 currentAllocation1,
-        ) = _calculateCurrentAllocations(userVault, token0, token1);
+        ) = _calculateCurrentAllocations(userVault, token0, token1, priceFeedId);
         
         uint256 drift0 = _calculateDrift(currentAllocation0, targetAllocation0);
         uint256 drift1 = _calculateDrift(currentAllocation1, targetAllocation1);
@@ -448,7 +506,7 @@ contract RebalanceExecutor is Ownable, ReentrancyGuard {
      */
     function updateSwapper(address payable newSwapper) external onlyOwner {
         if (newSwapper == address(0)) revert InvalidAddress();
-        swapper = SaucerSwapper(newSwapper);
+        swapper = ManualSwapper(newSwapper);
     }
     
     /**

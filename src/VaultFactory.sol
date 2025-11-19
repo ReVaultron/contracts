@@ -3,6 +3,7 @@ pragma solidity ^0.8.21;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./UserVault.sol";
+import "./interfaces/IHederaTokenService.sol";
 
 /**
  * @title VaultFactory
@@ -15,6 +16,7 @@ contract VaultFactory is Ownable {
 
     // Array of all created vaults
     address[] public allVaults;
+    address public usdcTokenAddress;
 
     // Mapping to check if an address is a valid vault
     mapping(address => bool) public isVault;
@@ -40,7 +42,7 @@ contract VaultFactory is Ownable {
      * @dev Constructor sets the owner and optional creation fee
      * @param _creationFee Optional fee in tinybars (1 HBAR = 100,000,000 tinybars)
      */
-    constructor(uint256 _creationFee) Ownable(msg.sender) {
+    constructor(uint256 _creationFee, address usdc) Ownable(msg.sender) {
         vaultCreationFee = _creationFee;
     }
 
