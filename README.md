@@ -1,5 +1,5 @@
-ReVaultron on Hedera: Multi-Agent Autonomous Portfolio Management
-Hedera Solidity Foundry License
+ReVaultron :A Multi-Agent Autonomous Portfolio Management on Hedera
+
 
 🎯 Project Overview
 ReVaultron is a multi-agent autonomous cryptocurrency portfolio management system built on Hedera that uses real-time volatility monitoring and coordinated AI agents to intelligently rebalance user portfolios during market crises—without manual intervention.
