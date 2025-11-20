@@ -1,39 +1,58 @@
-ReVaultron :A Multi-Agent Autonomous Portfolio Management on Hedera
+# ReVaultron on Hedera: Multi-Agent Autonomous Portfolio Management
 
+[![Hedera](https://img.shields.io/badge/Hedera-Mainnet-blue)](https://hedera.com)
+[![Solidity](https://img.shields.io/badge/Solidity-0.8.23-green)](https://soliditylang.org/)
+[![Foundry](https://img.shields.io/badge/Foundry-Latest-orange)](https://getfoundry.sh/)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-🎯 Project Overview
-ReVaultron is a multi-agent autonomous cryptocurrency portfolio management system built on Hedera that uses real-time volatility monitoring and coordinated AI agents to intelligently rebalance user portfolios during market crises—without manual intervention.
+## 🎯 Project Overview
 
-The October 2025 Crisis: When $19 billion was wiped from crypto markets in 24 hours, investors who couldn't rebalance at 2 AM watched their portfolios collapse. ReVaultron solves this by deploying a network of specialized AI agents that monitor, analyze, and execute portfolio protection 24/7.
+**ReVaultron** is a multi-agent autonomous cryptocurrency portfolio management system built on Hedera that uses real-time volatility monitoring and coordinated AI agents to intelligently rebalance user portfolios during market crises—without manual intervention.
 
-🏆 Hackathon Tracks Addressed
-✅ Basic Track: Verifiable on-chain AI Agent using ERC-8004 standard
-✅ Intermediate Track: Multi-agent marketplace with Agent-to-Agent (A2A) coordination
-✅ Main Track: Complete AI-driven DeFi application on Hedera
-🚨 The Problem
-Traditional Portfolio Management Fails During Crises
-Case Study: October 2025 Tariff Crisis
+**The October 2025 Crisis:** When $19 billion was wiped from crypto markets in 24 hours, investors who couldn't rebalance at 2 AM watched their portfolios collapse. ReVaultron solves this by deploying a network of specialized AI agents that monitor, analyze, and execute portfolio protection 24/7.
 
-Time: 2:00 AM EST - Tariff announcement breaks
-Impact: $19B market cap evaporated in 24 hours
-Problem: Retail investors were asleep
-Result: Portfolios became dangerously unbalanced
-Why Manual Rebalancing Doesn't Work:
+### 🏆 Hackathon Tracks Addressed
 
-24/7 Monitoring Required: Markets never sleep, crashes happen at 2 AM
-Emotional Decisions: Panic selling and FOMO lead to poor outcomes
-Speed Matters: Every second counts during flash crashes
-Transaction Overhead: Manual approval for each operation causes delays
-Complexity: Calculating optimal rebalancing requires real-time analysis
-Market Evidence:
+- ✅ **Basic Track**: Verifiable on-chain AI Agent using ERC-8004 standard
+- ✅ **Intermediate Track**: Multi-agent marketplace with Agent-to-Agent (A2A) coordination
+- ✅ **Main Track**: Complete AI-driven DeFi application on Hedera
 
-78% of retail investors missed optimal rebalancing during Oct 2025 crisis
-Average rebalancing delay: 6.5 hours (by then, markets had moved 40%)
-$2.3B in portfolio value lost due to delayed rebalancing
-💡 The Solution: Multi-Agent Autonomous System
+---
+
+## 🚨 The Problem
+
+### Traditional Portfolio Management Fails During Crises
+
+**Case Study: October 2025 Tariff Crisis**
+
+- **Time**: 2:00 AM EST - Tariff announcement breaks
+- **Impact**: $19B market cap evaporated in 24 hours
+- **Problem**: Retail investors were asleep
+- **Result**: Portfolios became dangerously unbalanced
+
+**Why Manual Rebalancing Doesn't Work:**
+
+1. **24/7 Monitoring Required**: Markets never sleep, crashes happen at 2 AM
+2. **Emotional Decisions**: Panic selling and FOMO lead to poor outcomes
+3. **Speed Matters**: Every second counts during flash crashes
+4. **Transaction Overhead**: Manual approval for each operation causes delays
+5. **Complexity**: Calculating optimal rebalancing requires real-time analysis
+
+**Market Evidence:**
+
+- 78% of retail investors missed optimal rebalancing during Oct 2025 crisis
+- Average rebalancing delay: 6.5 hours (by then, markets had moved 40%)
+- $2.3B in portfolio value lost due to delayed rebalancing
+
+---
+
+## 💡 The Solution: Multi-Agent Autonomous System
+
 ReVaultron deploys a coordinated network of specialized AI agents that work together to protect portfolios during volatility spikes.
 
-Agent Architecture
+### Agent Architecture
+
+```
 ┌─────────────────────────────────────────────────────────────┐
 │                    Hedera Consensus Service                  │
 │                  (Agent Communication Layer)                 │
@@ -51,15 +70,21 @@ Agent Architecture
     │              User Vault Smart Contracts                  │
     │                  (Individual Ownership)                  │
     └─────────────────────────────────────────────────────────┘
-🤖 Agent Roster
-1. Volatility Oracle Agent (ERC-8004 Verifiable)
-Role: Market monitoring and volatility calculation
-Data Sources: Pyth Network, Chainlink, Hedera native price feeds
-Output: Real-time volatility index (updated every 10 minutes)
-HCS Topic: 0.0.VOLATILITY_FEED
-Verification: Publishes cryptographic proofs of calculations on-chain
-Technical Implementation:
+```
 
+### 🤖 Agent Roster
+
+#### 1. **Volatility Oracle Agent** (ERC-8004 Verifiable)
+
+- **Role**: Market monitoring and volatility calculation
+- **Data Sources**: Pyth Network, Chainlink, Hedera native price feeds
+- **Output**: Real-time volatility index (updated every 10 minutes)
+- **HCS Topic**: `0.0.VOLATILITY_FEED`
+- **Verification**: Publishes cryptographic proofs of calculations on-chain
+
+**Technical Implementation:**
+
+```solidity
 // Volatility Oracle Agent verifies its calculations
 function publishVolatility(
     uint256 volatilityBps,
@@ -69,51 +94,72 @@ function publishVolatility(
     volatilityIndex = volatilityBps;
     emit VolatilityUpdated(volatilityBps, block.timestamp);
 }
-2. Portfolio Manager Agent
-Role: Analyzes portfolios and determines rebalancing needs
-Inputs: User vault states + volatility data
-Logic: Calculates optimal token allocations using MPT (Modern Portfolio Theory)
-Output: Rebalancing instructions published to HCS
-Decision Algorithm:
+```
 
+#### 2. **Portfolio Manager Agent**
+
+- **Role**: Analyzes portfolios and determines rebalancing needs
+- **Inputs**: User vault states + volatility data
+- **Logic**: Calculates optimal token allocations using MPT (Modern Portfolio Theory)
+- **Output**: Rebalancing instructions published to HCS
+
+**Decision Algorithm:**
+
+```
 IF volatility > user_threshold AND drift > 5%:
     CALCULATE optimal_allocation
     GENERATE rebalancing_plan
     REQUEST risk_assessment
     IF approved:
         SEND to execution_agent
-3. Execution Agent
-Role: Executes approved rebalancing transactions
-Capabilities:
-SaucerSwap DEX integration
-HTS token transfers
-Slippage protection
-MEV resistance
-Safety: Only executes pre-approved plans from Portfolio Manager
-4. Risk Assessment Agent
-Role: Validates rebalancing decisions before execution
-Checks:
-Price impact analysis (prevent manipulation)
-Liquidity depth verification
-Slippage tolerance validation
-Historical pattern matching
-Authority: Can veto dangerous rebalancing attempts
-Agent Communication Protocol (A2A via HCS)
-All agents communicate through Hedera Consensus Service topics for:
+```
 
-Transparency: Every message is on-chain and auditable
-Ordering: HCS provides total ordering of agent messages
-Immutability: Communication history cannot be altered
-Low Latency: 3-5 second consensus finality
-Message Flow Example:
+#### 3. **Execution Agent**
 
+- **Role**: Executes approved rebalancing transactions
+- **Capabilities**:
+  - SaucerSwap DEX integration
+  - HTS token transfers
+  - Slippage protection
+  - MEV resistance
+- **Safety**: Only executes pre-approved plans from Portfolio Manager
+
+#### 4. **Risk Assessment Agent**
+
+- **Role**: Validates rebalancing decisions before execution
+- **Checks**:
+  - Price impact analysis (prevent manipulation)
+  - Liquidity depth verification
+  - Slippage tolerance validation
+  - Historical pattern matching
+- **Authority**: Can veto dangerous rebalancing attempts
+
+### Agent Communication Protocol (A2A via HCS)
+
+All agents communicate through **Hedera Consensus Service topics** for:
+
+- **Transparency**: Every message is on-chain and auditable
+- **Ordering**: HCS provides total ordering of agent messages
+- **Immutability**: Communication history cannot be altered
+- **Low Latency**: 3-5 second consensus finality
+
+**Message Flow Example:**
+
+```
 1. Volatility Oracle → HCS Topic: "Volatility spike detected: 38%"
 2. Portfolio Manager → HCS Topic: "User 0x123 requires rebalancing"
 3. Risk Assessment → HCS Topic: "Rebalancing approved, liquidity sufficient"
 4. Execution Agent → HCS Topic: "Executing swap: 1000 USDC → HBAR"
 5. Execution Agent → HCS Topic: "Rebalancing complete, gas: 0.0003 HBAR"
-🏗️ Architecture
-System Components
+```
+
+---
+
+## 🏗️ Architecture
+
+### System Components
+
+```
 ┌──────────────────────────────────────────────────────────────┐
 │                         Frontend Layer                        │
 │  React + TypeScript + shadcn/ui + Hedera SDK                 │
@@ -131,22 +177,31 @@ System Components
 │   Smart Contracts │ │  HCS Topics  │ │   HTS Tokens     │
 │   (Foundry)       │ │  (Messages)  │ │   (Assets)       │
 └──────────────────┘ └──────────────┘ └──────────────────┘
-Hedera Network Integration
-Services Used:
+```
 
-Hedera Consensus Service (HCS): Agent communication, audit trails
-Hedera Token Service (HTS): Vault tokens, portfolio assets
-Hedera File Service (HFS): Agent model/configuration storage
-Hedera Smart Contract Service (HSCS): Vault logic, agent verification
-Scheduled Transactions: Automated rebalancing execution
-Why Hedera?
+### Hedera Network Integration
 
-Cost: $0.0001 per transaction vs $5-50 on Ethereum
-Speed: 3-5 second finality vs 12+ minutes on Ethereum
-Sustainability: Carbon-negative network
-Predictability: Fixed fees regardless of network congestion
-Scalability: 10,000+ TPS capacity
-📁 Project Structure
+**Services Used:**
+
+- **Hedera Consensus Service (HCS)**: Agent communication, audit trails
+- **Hedera Token Service (HTS)**: Vault tokens, portfolio assets
+- **Hedera File Service (HFS)**: Agent model/configuration storage
+- **Hedera Smart Contract Service (HSCS)**: Vault logic, agent verification
+- **Scheduled Transactions**: Automated rebalancing execution
+
+**Why Hedera?**
+
+- **Cost**: $0.0001 per transaction vs $5-50 on Ethereum
+- **Speed**: 3-5 second finality vs 12+ minutes on Ethereum
+- **Sustainability**: Carbon-negative network
+- **Predictability**: Fixed fees regardless of network congestion
+- **Scalability**: 10,000+ TPS capacity
+
+---
+
+## 📁 Project Structure
+
+```
 ReVaultron-hedera/
 │
 ├── contracts/                          # Foundry smart contracts
@@ -234,8 +289,15 @@ ReVaultron-hedera/
 ├── package.json
 ├── README.md
 └── LICENSE
-🔗 Smart Contract Flow (Foundry)
-Contract Deployment Sequence
+```
+
+---
+
+## 🔗 Smart Contract Flow (Foundry)
+
+### Contract Deployment Sequence
+
+```bash
 # 1. Deploy core infrastructure
 forge script script/Deploy.s.sol:DeployCore --rpc-url $HEDERA_RPC --broadcast
 
@@ -244,8 +306,13 @@ forge script script/Deploy.s.sol:DeployAgents --rpc-url $HEDERA_RPC --broadcast
 
 # 3. Setup HCS topics and permissions
 forge script script/SetupAgents.s.sol --rpc-url $HEDERA_RPC --broadcast
-Contract Interactions
-1. User Vault Creation
+```
+
+### Contract Interactions
+
+#### 1. **User Vault Creation**
+
+```solidity
 // VaultFactory.sol
 function createVault(
     address[] calldata tokens,
@@ -266,7 +333,11 @@ function createVault(
     emit VaultCreated(msg.sender, address(vault));
     return address(vault);
 }
-2. Volatility Update (Oracle Agent)
+```
+
+#### 2. **Volatility Update (Oracle Agent)**
+
+```solidity
 // VolatilityIndex.sol
 function updateVolatility(
     uint256 newVolatility,
@@ -290,7 +361,11 @@ function updateVolatility(
 
     emit VolatilityUpdated(newVolatility, block.timestamp);
 }
-3. Portfolio Analysis (Manager Agent)
+```
+
+#### 3. **Portfolio Analysis (Manager Agent)**
+
+```solidity
 // UserVault.sol
 function analyzeRebalancing() external view returns (
     bool needsRebalancing,
@@ -327,7 +402,11 @@ function analyzeRebalancing() external view returns (
         _getTokenBalances()
     );
 }
-4. Risk Validation (Risk Agent)
+```
+
+#### 4. **Risk Validation (Risk Agent)**
+
+```solidity
 // RiskAssessmentAgent.sol
 function validateRebalancing(
     address vault,
@@ -355,7 +434,11 @@ function validateRebalancing(
     emit RebalancingApproved(vault, swaps);
     return (true, "Approved");
 }
-5. Execution (Execution Agent)
+```
+
+#### 5. **Execution (Execution Agent)**
+
+```solidity
 // UserVault.sol (called by Execution Agent)
 function executeRebalancing(
     SwapParams[] calldata swaps,
@@ -396,7 +479,11 @@ function executeRebalancing(
 
     emit RebalancingComplete(block.timestamp);
 }
-Testing Strategy
+```
+
+### Testing Strategy
+
+```bash
 # Unit tests for individual contracts
 forge test --match-contract VaultFactory
 
@@ -411,8 +498,15 @@ forge test --gas-report
 
 # Coverage report
 forge coverage
-🤖 Agent Flow & Coordination
-Agent Lifecycle
+```
+
+---
+
+## 🤖 Agent Flow & Coordination
+
+### Agent Lifecycle
+
+```
 ┌─────────────────────────────────────────────────────────────┐
 │ INITIALIZATION PHASE                                         │
 └─────────────────────────────────────────────────────────────┘
@@ -470,9 +564,13 @@ Agent Lifecycle
    - Frontend subscribes to all topics
    - Users see real-time agent activity
    - Complete transparency of decision-making
-A2A Communication Protocol
-HCS Topic Structure:
+```
 
+### A2A Communication Protocol
+
+**HCS Topic Structure:**
+
+```
 Topic ID                  Purpose                    Publishers
 -----------------------------------------------------------------------
 0.0.VOLATILITY_001       Volatility updates         Volatility Oracle
@@ -480,8 +578,11 @@ Topic ID                  Purpose                    Publishers
 0.0.RISK_001             Risk assessments           Risk Assessment
 0.0.EXECUTION_001        Execution results          Execution Agent
 0.0.AUDIT_001            Audit trail (all agents)   All agents
-Message Format (JSON):
+```
 
+**Message Format (JSON):**
+
+```json
 {
   "agentId": "0x...VolatilityOracleAgent",
   "timestamp": 1730678400,
@@ -497,7 +598,11 @@ Message Format (JSON):
   "signature": "0x...", // ERC-8004 proof
   "previousMessageHash": "0x..." // Chain messages together
 }
-Agent Coordination Example: October 2025 Crisis Simulation
+```
+
+### Agent Coordination Example: October 2025 Crisis Simulation
+
+```
 T+0s   [Volatility Oracle] Detects tariff news, volatility spikes to 38%
        └─ Publishes to HCS: VOLATILITY_UPDATES
 
@@ -520,15 +625,25 @@ T+8s   [Execution Agent] Receives approval
 
 T+10s  [All Agents] Log completion to audit topic
        └─ User wakes up 6 hours later, portfolio protected
-vs Manual User (no ReVaultron):
+```
 
+**vs Manual User (no ReVaultron):**
+
+```
 T+0s   User is asleep
 T+6h   User wakes up, checks portfolio
        └─ Market has moved 40%, portfolio severely imbalanced
        └─ Optimal rebalancing opportunity missed
        └─ Loss: ~15% of portfolio value
-⚙️ Technical Implementation Details
-ERC-8004 Agent Verification
+```
+
+---
+
+## ⚙️ Technical Implementation Details
+
+### ERC-8004 Agent Verification
+
+```solidity
 // IERC8004.sol
 interface IERC8004 {
     /// @notice Verify an agent's action with cryptographic proof
@@ -580,7 +695,11 @@ contract VolatilityOracleAgent is IERC8004 {
         return caps;
     }
 }
-Hedera Token Service Integration
+```
+
+### Hedera Token Service Integration
+
+```typescript
 // agents/shared/hts-client.ts
 import { TokenCreateTransaction, TokenMintTransaction } from "@hashgraph/sdk";
 
@@ -618,7 +737,11 @@ export class HTSClient {
     await transaction.execute(this.client);
   }
 }
-HCS Message Publishing & Subscription
+```
+
+### HCS Message Publishing & Subscription
+
+```typescript
 // agents/shared/hcs-client.ts
 import {
   TopicCreateTransaction,
@@ -684,7 +807,11 @@ export class HCSClient {
       });
   }
 }
-SaucerSwap DEX Integration
+```
+
+### SaucerSwap DEX Integration
+
+```typescript
 // agents/execution-agent/saucerswap.ts
 import { ethers } from "ethers";
 
@@ -754,69 +881,91 @@ export class SaucerSwapExecutor {
     return impact;
   }
 }
-✨ Features
-Core Features
-Individual Vault Ownership
+```
 
-Each user gets dedicated smart contract vault
-No pooled funds, no counterparty risk
-Full transparency via BaseScan/Hedera Explorer
-Multi-Agent Automation
+---
 
-4 specialized agents working in coordination
-Volatility monitoring every 10 minutes
-Automatic rebalancing during market crises
-24/7 operation, no manual intervention
-ERC-8004 Verifiable Agents
+## ✨ Features
 
-Cryptographic proof of agent actions
-On-chain verification of agent identity
-Tamper-proof audit trail
-Real-Time Volatility Tracking
+### Core Features
 
-Pyth Network oracle integration
-Statistical volatility calculation (12-week rolling)
-On-chain storage via VolatilityIndex contract
-Intelligent Rebalancing
+1. **Individual Vault Ownership**
 
-Threshold-based triggering (user-configurable)
-Modern Portfolio Theory (MPT) optimization
-Slippage protection and MEV resistance
-Complete Transparency
+   - Each user gets dedicated smart contract vault
+   - No pooled funds, no counterparty risk
+   - Full transparency via BaseScan/Hedera Explorer
 
-All agent messages published to HCS
-Every decision auditable on-chain
-Real-time dashboard showing agent activity
-Advanced Features
-Risk Management
+2. **Multi-Agent Automation**
 
-Dedicated risk assessment agent
-Price impact validation
-Liquidity depth checking
-Veto power over dangerous operations
-Gas Optimization
+   - 4 specialized agents working in coordination
+   - Volatility monitoring every 10 minutes
+   - Automatic rebalancing during market crises
+   - 24/7 operation, no manual intervention
 
-Batched operations where possible
-Scheduled transactions for predictable timing
-HTS native tokens (lower fees than ERC-20)
-Multi-Token Support
+3. **ERC-8004 Verifiable Agents**
 
-HBAR, USDC, SAUCE, and other HTS tokens
-Flexible allocation strategies
-Custom token addition
-Historical Analytics
+   - Cryptographic proof of agent actions
+   - On-chain verification of agent identity
+   - Tamper-proof audit trail
 
-Complete transaction history
-Performance tracking over time
-Volatility correlation analysis
-Gas cost summaries
-Emergency Controls
+4. **Real-Time Volatility Tracking**
 
-User can pause automation anytime
-Immediate withdrawal functionality
-Agent permission revocation
-👤 User Flow
-1. Account Setup
+   - Pyth Network oracle integration
+   - Statistical volatility calculation (12-week rolling)
+   - On-chain storage via VolatilityIndex contract
+
+5. **Intelligent Rebalancing**
+
+   - Threshold-based triggering (user-configurable)
+   - Modern Portfolio Theory (MPT) optimization
+   - Slippage protection and MEV resistance
+
+6. **Complete Transparency**
+
+   - All agent messages published to HCS
+   - Every decision auditable on-chain
+   - Real-time dashboard showing agent activity
+
+### Advanced Features
+
+8. **Risk Management**
+
+   - Dedicated risk assessment agent
+   - Price impact validation
+   - Liquidity depth checking
+   - Veto power over dangerous operations
+
+9. **Gas Optimization**
+
+   - Batched operations where possible
+   - Scheduled transactions for predictable timing
+   - HTS native tokens (lower fees than ERC-20)
+
+10. **Multi-Token Support**
+
+    - HBAR, USDC, SAUCE, and other HTS tokens
+    - Flexible allocation strategies
+    - Custom token addition
+
+11. **Historical Analytics**
+
+    - Complete transaction history
+    - Performance tracking over time
+    - Volatility correlation analysis
+    - Gas cost summaries
+
+12. **Emergency Controls**
+    - User can pause automation anytime
+    - Immediate withdrawal functionality
+    - Agent permission revocation
+
+---
+
+## 👤 User Flow
+
+### 1. **Account Setup**
+
+```
 User Journey:
 ┌─────────────────────────────────────────────────────────┐
 │ 1. Visit ReVaultron.hedera.app                             │
@@ -824,8 +973,11 @@ User Journey:
 │ 3. Authenticate via Hedera account signature            │
 │ 4. System checks if user has existing vault             │
 └─────────────────────────────────────────────────────────┘
-Technical Flow:
+```
 
+**Technical Flow:**
+
+```typescript
 // Frontend: Connect wallet
 const client = await HashConnectClient.connect();
 const accountId = client.getAccountId();
@@ -840,7 +992,13 @@ if (!vaultAddress) {
   // Existing user, load dashboard
   navigateTo("/dashboard");
 }
-2. Vault Creation
+```
+
+---
+
+### 2. **Vault Creation**
+
+```
 User Configuration:
 ┌─────────────────────────────────────────────────────────┐
 │ Step 1: Select Tokens                                   │
@@ -861,8 +1019,11 @@ User Configuration:
 │                                                          │
 │                           [Create Vault] ────────────▶  │
 └─────────────────────────────────────────────────────────┘
-Smart Contract Execution:
+```
 
+**Smart Contract Execution:**
+
+```solidity
 // VaultFactory.createVault()
 UserVault newVault = new UserVault({
     owner: msg.sender,
@@ -876,7 +1037,13 @@ portfolioManagerAgent.registerVault(address(newVault));
 executionAgent.grantPermission(address(newVault));
 
 emit VaultCreated(msg.sender, address(newVault));
-3. Initial Deposit
+```
+
+---
+
+### 3. **Initial Deposit**
+
+```
 Deposit Interface:
 ┌─────────────────────────────────────────────────────────┐
 │ Deposit to Your Vault                                   │
@@ -895,8 +1062,11 @@ Deposit Interface:
 │                                                          │
 │                        [Deposit] ─────────────────────▶ │
 └─────────────────────────────────────────────────────────┘
-HTS Token Transfer:
+```
 
+**HTS Token Transfer:**
+
+```typescript
 // Transfer HBAR to vault
 await new TransferTransaction()
   .addHbarTransfer(userAccountId, new Hbar(-1000))
@@ -912,7 +1082,13 @@ await new TransferTransaction()
 // Vault contract emits event
 emit Deposit(HBAR, 1000 ether, block.timestamp);
 emit Deposit(USDC, 1200 ether, block.timestamp);
-4. Agent Authorization
+```
+
+---
+
+### 4. **Agent Authorization**
+
+```
 Permission Setup:
 ┌─────────────────────────────────────────────────────────┐
 │ Authorize Agents                                         │
@@ -946,8 +1122,11 @@ Permission Setup:
 │                                                          │
 │                  [Authorize Agents] ──────────────────▶ │
 └─────────────────────────────────────────────────────────┘
-Permission Granting:
+```
 
+**Permission Granting:**
+
+```solidity
 // UserVault.authorizeAgents()
 function authorizeAgents() external onlyOwner {
     // Grant execution permission
@@ -966,7 +1145,13 @@ function authorizeAgents() external onlyOwner {
 
     emit AgentsAuthorized(block.timestamp);
 }
-5. Active Monitoring (Dashboard)
+```
+
+---
+
+### 5. **Active Monitoring (Dashboard)**
+
+```
 Dashboard View:
 ┌─────────────────────────────────────────────────────────┐
 │ ReVaultron Dashboard                                       │
@@ -1006,8 +1191,11 @@ Dashboard View:
 │ • Nov 2, 03:45 PM - Deposit: 1200 USDC                 │
 │                                                          │
 └─────────────────────────────────────────────────────────┘
-Real-Time Subscriptions:
+```
 
+**Real-Time Subscriptions:**
+
+```typescript
 // Frontend subscribes to HCS topics
 const hcsClient = new HCSClient();
 
@@ -1026,7 +1214,13 @@ hcsClient.subscribeToTopic("AUDIT", (message) => {
     data: message.data,
   });
 });
-6. Automatic Rebalancing (Crisis Event)
+```
+
+---
+
+### 6. **Automatic Rebalancing (Crisis Event)**
+
+```
 Crisis Notification:
 ┌─────────────────────────────────────────────────────────┐
 │ 🚨 REBALANCING IN PROGRESS                              │
@@ -1048,8 +1242,11 @@ Crisis Notification:
 │                                                          │
 │ [View Live on HashScan] ──────────────────────────────▶ │
 └─────────────────────────────────────────────────────────┘
-Execution Flow:
+```
 
+**Execution Flow:**
+
+```typescript
 // Execution Agent receives approval
 hcsClient.subscribeToTopic("RISK_ASSESSMENTS", async (message) => {
   if (message.data.approved) {
@@ -1080,7 +1277,13 @@ hcsClient.subscribeToTopic("RISK_ASSESSMENTS", async (message) => {
     });
   }
 });
-7. Post-Rebalancing Verification
+```
+
+---
+
+### 7. **Post-Rebalancing Verification**
+
+```
 Completion Summary:
 ┌─────────────────────────────────────────────────────────┐
 │ ✅ REBALANCING COMPLETE                                 │
@@ -1108,80 +1311,109 @@ Completion Summary:
 │ [View Complete HCS Audit Trail] ──────────────────────▶ │
 │ [Verify on HashScan] ──────────────────────────────────▶ │
 └─────────────────────────────────────────────────────────┘
-🚀 Future Roadmap
-Phase 1: MVP (Hackathon Deliverable) ✅
- Deploy on Hedera testnet
- 4-agent architecture implementation
- ERC-8004 verifiable agents
- HCS-based A2A communication
- SaucerSwap integration
- Basic frontend dashboard
- Demo video showcasing crisis scenario
-Phase 2: Enhanced Automation (Q1 2026)
- Advanced Volatility Models
+```
 
-GARCH (Generalized AutoRegressive Conditional Heteroskedasticity)
-VIX-style implied volatility calculation
-Machine learning price prediction
- Additional Agents
+---
 
-Market Sentiment Agent (social media, news analysis)
-Gas Optimization Agent (schedules txs for low-fee periods)
-Arbitrage Opportunity Agent (captures price differences)
- Multi-DEX Support
+## 🚀 Future Roadmap
 
-Pangolin integration
-HeliSwap integration
-Best price routing across DEXs
-Phase 3: Advanced Features (Q2 2026)
- Strategy Marketplace
+### Phase 1: MVP (Hackathon Deliverable) ✅
 
-Users can create/share custom rebalancing strategies
-Strategy backtesting framework
-Performance leaderboards
- Lending Integration
+- [x] Deploy on Hedera testnet
+- [x] 4-agent architecture implementation
+- [x] ERC-8004 verifiable agents
+- [x] HCS-based A2A communication
+- [x] SaucerSwap integration
+- [x] Basic frontend dashboard
+- [x] Demo video showcasing crisis scenario
 
-Lend idle USDC on Hedera DeFi protocols
-Earn yield while maintaining rebalancing capability
-Automated collateral management
- Cross-Chain Expansion
+### Phase 2: Enhanced Automation (Q1 2026)
 
-Bridge to Ethereum L2s (Arbitrum, Optimism)
-Unified multi-chain portfolio view
-Cross-chain rebalancing
- Agent Economy
+- [ ] **Advanced Volatility Models**
 
-Agents earn fees for successful rebalancing
-Users can hire best-performing agents
-Agent reputation system on-chain
- Ecosystem Integration
+  - GARCH (Generalized AutoRegressive Conditional Heteroskedasticity)
+  - VIX-style implied volatility calculation
+  - Machine learning price prediction
 
-Native support in Hedera wallets (HashPack, Blade)
-Integration with TradFi via tokenized assets
-Regulatory approval for institutional adoption
-📊 Competitive Analysis
-ReVaultron vs Traditional Solutions
-Feature	ReVaultron	Centralized CEX	Manual DeFi
-Automation	Full (agents)	Partial (API bots)	None
-Custody	Self (your vault)	Custodial (exchange)	Self (wallet)
-Transparency	Complete (HCS)	None	Manual tracking
-Response Time	< 10 minutes	Hours (approval delays)	Hours (human reaction)
-Cost per Rebalance	$0.0005	$2-5 (trading fees)	$5-50 (gas fees)
-24/7 Monitoring	Yes	Limited	No
-Verifiable Agents	Yes (ERC-8004)	N/A	N/A
-Why Hedera?
-vs Ethereum:
+- [ ] **Additional Agents**
 
-99.9% lower transaction costs
-200x faster finality (3s vs 12+ min)
-Carbon-negative vs energy-intensive
-vs Other L1s (Solana, Avalanche):
+  - Market Sentiment Agent (social media, news analysis)
+  - Gas Optimization Agent (schedules txs for low-fee periods)
+  - Arbitrage Opportunity Agent (captures price differences)
 
-Predictable fees (no fee spikes during congestion)
-Enterprise-grade governance (Google, IBM, Boeing)
-Regulatory-friendly (HBAR Foundation compliance focus)
-🛠️ Development Setup
-Prerequisites
+- [ ] **Multi-DEX Support**
+  - Pangolin integration
+  - HeliSwap integration
+  - Best price routing across DEXs
+
+### Phase 3: Advanced Features (Q2 2026)
+
+- [ ] **Strategy Marketplace**
+
+  - Users can create/share custom rebalancing strategies
+  - Strategy backtesting framework
+  - Performance leaderboards
+
+- [ ] **Lending Integration**
+
+  - Lend idle USDC on Hedera DeFi protocols
+  - Earn yield while maintaining rebalancing capability
+  - Automated collateral management
+
+- [ ] **Cross-Chain Expansion**
+
+  - Bridge to Ethereum L2s (Arbitrum, Optimism)
+  - Unified multi-chain portfolio view
+  - Cross-chain rebalancing
+
+- [ ] **Agent Economy**
+
+  - Agents earn fees for successful rebalancing
+  - Users can hire best-performing agents
+  - Agent reputation system on-chain
+
+- [ ] **Ecosystem Integration**
+  - Native support in Hedera wallets (HashPack, Blade)
+  - Integration with TradFi via tokenized assets
+  - Regulatory approval for institutional adoption
+
+---
+
+## 📊 Competitive Analysis
+
+### ReVaultron vs Traditional Solutions
+
+| Feature                | ReVaultron        | Centralized CEX         | Manual DeFi            |
+| ---------------------- | ----------------- | ----------------------- | ---------------------- |
+| **Automation**         | Full (agents)     | Partial (API bots)      | None                   |
+| **Custody**            | Self (your vault) | Custodial (exchange)    | Self (wallet)          |
+| **Transparency**       | Complete (HCS)    | None                    | Manual tracking        |
+| **Response Time**      | < 10 minutes      | Hours (approval delays) | Hours (human reaction) |
+| **Cost per Rebalance** | $0.0005           | $2-5 (trading fees)     | $5-50 (gas fees)       |
+| **24/7 Monitoring**    | Yes               | Limited                 | No                     |
+| **Verifiable Agents**  | Yes (ERC-8004)    | N/A                     | N/A                    |
+
+### Why Hedera?
+
+**vs Ethereum:**
+
+- 99.9% lower transaction costs
+- 200x faster finality (3s vs 12+ min)
+- Carbon-negative vs energy-intensive
+
+**vs Other L1s (Solana, Avalanche):**
+
+- Predictable fees (no fee spikes during congestion)
+- Enterprise-grade governance (Google, IBM, Boeing)
+- Regulatory-friendly (HBAR Foundation compliance focus)
+
+---
+
+## 🛠️ Development Setup
+
+### Prerequisites
+
+```bash
 # Install Foundry
 curl -L https://foundry.paradigm.xyz | bash
 foundryup
@@ -1195,7 +1427,11 @@ npm install @hashgraph/sdk
 # Clone repository
 git clone https://github.com/yourusername/ReVaultron-hedera
 cd ReVaultron-hedera
-Environment Configuration
+```
+
+### Environment Configuration
+
+```bash
 # .env
 HEDERA_NETWORK=testnet
 HEDERA_ACCOUNT_ID=0.0.YOUR_ACCOUNT
@@ -1210,7 +1446,11 @@ PYTH_HERMES_URL=https://hermes.pyth.network
 # Frontend
 NEXT_PUBLIC_HEDERA_NETWORK=testnet
 NEXT_PUBLIC_VAULT_FACTORY=0x...
-Build & Deploy
+```
+
+### Build & Deploy
+
+```bash
 # Compile contracts
 cd contracts
 forge build
@@ -1231,7 +1471,11 @@ npm run start:all
 # Start frontend
 cd ../frontend
 npm run dev
-Testing
+```
+
+### Testing
+
+```bash
 # Unit tests
 forge test --match-contract VaultFactory
 
@@ -1243,3 +1487,6 @@ cd frontend && npm run test
 
 # E2E tests
 npm run test:e2e
+```
+
+---
