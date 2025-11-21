@@ -13,8 +13,6 @@
 
 ### 🏆 Hackathon Tracks Addressed
 
-- ✅ **Basic Track**: Verifiable on-chain AI Agent using ERC-8004 standard
-- ✅ **Intermediate Track**: Multi-agent marketplace with Agent-to-Agent (A2A) coordination
 - ✅ **Main Track**: Complete AI-driven DeFi application on Hedera
 
 ---
