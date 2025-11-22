@@ -1,4 +1,4 @@
-# ReVaultron on Hedera: Multi-Agent Autonomous Portfolio Management
+# ReVaultron : Multi-Agent Autonomous Portfolio Management on Hedera
 
 [![Hedera](https://img.shields.io/badge/Hedera-Mainnet-blue)](https://hedera.com)
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.23-green)](https://soliditylang.org/)
